@@ -1,0 +1,368 @@
+PetClinic project[
+  url www.petclinic.com
+  namespace co.drytools
+](
+  #SERVER ELEMENT
+  backend server[
+    #SETTINGS
+    template java-springboot
+    developer (dvesin, nmilinkovic, bgvoka, nolah, profesor)
+    security (principal User, role UserRole, defaultRole VET, adminRole ADMIN, type (email))
+    path /pet-server
+    default model type mysql
+    mail support@petclinic.com
+    file storage fs
+](
+    #PROPERTIES
+    adminEmail text[key adminEmail, production "admin_production@email.com", test "admin_test@email.com"]
+
+    #ERRORS
+    InvalidPetData dataConstraint
+    InvalidUser badRequest
+    InvalidPetOwner badRequest
+
+    #ENUMS
+    UserRole enum(VET, ADMIN, OWNER)
+    PetType enum(DOG, CAT, BIRD, FISH, OTHER)
+
+    #
+    #MODELS
+    #
+
+    #USER MODEL
+    User model[tracked](
+      firstName text[min 1, max 40, searchable]
+      lastName text[min 1, max 60]
+      birthdate date[default 2016-8-15]
+      active boolean
+
+      adminUsers find from User as user
+        where user.role == ADMIN
+
+      findByNameOrLastNameLike find
+        where User.firstName like firstname
+        or User.lastName like lastname
+
+      filterUsers find
+        where optional User.email like email
+        and optional User.firstName like first
+        and optional User.lastName like last
+
+      activeUsersVets find from User
+        join Vet on Vet.user
+        where User.role == VET
+        and User.active == true
+        order by User.lastName asc
+    )
+
+    #OWNER MODEL
+    Owner model(
+      user User[oneToOne, unique]
+      address optional text[min 5, max 100]
+      city optional text[min 2, max 50]
+      telephone optional text[min 5, max 15]
+
+      allOwnersPaged find from Owner
+        drop param take 20
+
+      findOwnerwithUser find from Owner
+        join User on Owner.user
+        where Owner.id == id
+
+      mandatoryAddress find from Owner
+        where mandatory Owner.address == address
+
+      orderableOwners find
+        where Owner.city is not null
+        or Owner.telephone is not null
+        orderable by (Owner.city, Owner.telephone)
+
+      deactivatedOwnerWithPets find from Owner
+        join Pet on Owner with Pet.owner
+        join User on Owner.user
+        where User.active == false and User.role == OWNER
+
+      findOwnerVets find from Owner
+        join User on Owner.user
+        where User.role == VET
+    )
+
+    #VET MODEL
+    Vet model(
+      user User[oneToOne, unique]
+      image file
+    )
+
+    #VETSPECIALITY MODEL
+    VetSpeciality model(
+      name text[unique, min 3, max 50]
+      description text[min 1, max 1024]
+    )
+
+    #VETSPECIALITIES MODEL
+    VetSpecialities model(
+      vet Vet
+      speciality VetSpeciality
+    )
+
+    #PET MODEL
+    Pet model(
+      owner Owner[manyToOne]
+      name text[min 2, max 40]
+      birthdate date
+      petType PetType
+      vaccinated boolean
+
+      petWithOwnerCount count
+        left join Owner on Pet.owner
+
+      petWithOwnerForOwner find
+        left join Owner on Pet.owner
+        where Pet.owner == owner
+    )
+
+    #VISIT MODEL
+    Visit model(
+      vet Vet
+      pet Pet[manyToOne]
+      visitNumber integer
+      timestamp datetime
+      petWeight optional decimal
+      description optional text[max 1024]
+      scheduled boolean[default false]
+    )
+
+    #
+    #APIS
+    #
+
+    #USER API
+    UserApi api[secured ADMIN, rest /users](
+
+      user crud[model User, secured ADMIN, rest]
+
+      users paged[query User.findAll,
+        response (User.id, User.email, User.firstName, User.lastName),
+        secured, rest /allUsers]
+
+      nonAdmins find[from User where User.role != ADMIN,
+        secured (ADMIN, VET), rest /nonAdmins]
+
+      adminUsers find[query User.adminUsers,
+        rest /admins, secured]
+
+      UserResponseDTO dto[model User](
+        User.id
+        User.email
+        User.firstName
+        User.lastName
+        User.birthdate
+        User.active
+      )
+
+      UserActivationSimpleDTO dto[model User](
+        User.id
+        User.active[default true]
+      )
+
+      UserDTO dto[model User]
+
+      setUserActiveStatusSimple custom[
+        request UserActivationSimpleDTO,
+        response UserResponseDTO,
+        put /active/simple]
+
+      getActiveUser custom[
+        request UserDTO
+        response UserResponseDTO
+        get /user]
+
+    )
+
+    #OWNER API
+    OwnerApi api[secured](
+
+        owner crud[model Owner, secured VET, rest]
+
+        allOwners find[
+          query Owner.allOwnersPaged,
+          rest /allOwners, secured VET]
+
+        ownersForAddress paged[
+          from Owner
+          join User on Owner.user
+          where optional Owner.address like address
+          response (Owner.id, User.email, User.firstName, User.lastName),
+          secured VET, rest /owners]
+
+        ownersWithPets find[
+          from Owner
+          join Pet as pet on Owner with pet.owner
+          join User on Owner.user
+          response (User.firstName, User.lastName)
+          secured VET, rest /ownersWithPets]
+
+        ownersPets find[
+          from Owner
+          join Pet on Owner with Pet.owner
+          join User on Owner.user
+          where Owner.id == ownerId
+          response (Pet.id, Owner.id, Pet.name)
+          secured VET, rest /owner/:ownerId/pets]
+
+        myPets find[
+          from Owner as owner
+          join Pet as pet on owner with pet.owner
+          join User on owner with owner.user
+          where owner.user == principal
+          secured OWNER, rest]
+
+        ownerVets find [
+          query Owner.findOwnerVets,
+          secured VET, rest]
+    )
+
+    #VET API
+    VetApi api[secured ADMIN, rest](
+
+        vet crud[model Vet, rest]
+
+        VetDTO dto(
+          Vet.id
+          User.firstName
+          User.lastName)
+
+        VetWithSpecialtiesDTO dto(
+          User.firstName
+          User.lastName
+          specialties list VetSpeciality.name
+        )
+
+        vetsWithSpecialties custom[
+          request VetDTO,
+          response list VetWithSpecialtiesDTO,
+          get /vets, errors InvalidPetData]
+
+        vetInfo custom[
+          request dto( Vet.id),
+          response VetWithSpecialtiesDTO, get /vet/info/:id]
+    )
+
+    #PET API
+    PetApi api[secured](
+
+        pet crud[model Pet, secured VET, rest]
+
+        pets paged[
+          from Pet
+          join Owner on Pet.owner
+          join User on Owner.user,
+          response (Pet.id, Pet.name, Pet.petType, User.lastName)
+          secured VET, rest /pets]
+
+        findPetbyType find[
+          from Pet where Pet.petType == petType,
+          response (Pet.name, Pet.petType),
+          secured VET, rest]
+
+    )
+
+    #VISIT API
+    VisitApi api[secured VET, rest /visit](
+
+      visit crud[model Visit, rest]
+
+      vetVisits paged[
+      from Visit
+      join Vet on Visit.vet
+      join Pet on Visit.pet
+      where Vet.user == user
+      response (Vet.user, Pet.name, Visit.visitNumber, Visit.scheduled)
+      rest]
+
+      scheduledVisits find[
+      from Visit
+      where Visit.description is not null
+      and Visit.scheduled == true
+      rest /scheduled]
+
+      myVisits find[
+        from Visit as visit
+        join Pet as pet on visit with visit.pet
+        join Owner as owner on visit with pet.owner
+        join User on owner with owner.user
+        where owner.user == userId
+        secured OWNER, rest]
+    )
+  )
+
+
+  #
+  #CLIENTS
+  #
+
+  #WEBSITE CLIENT
+ website client[
+  template js-angular
+      path /petclinic
+      connectedTo backend
+      home welcomePage
+  ](
+
+    publicHeader container(
+        signInButton button {on click goto signInPage}
+        signUpButton button {on click goto signUpPage}
+    )
+
+    #CONTAINERS
+    privateHeader container(
+       userInfo label
+    )
+
+    footer container(
+        about button{on click goto aboutPage}
+    )
+
+    #PAGES
+    welcomePage page(
+        header publicHeader
+        welcome label
+        #TODO content
+        footer footer
+    )
+
+    aboutPage page[path /about](
+        header publicHeader
+        #TODO content
+        footer footer
+    )
+
+    petsPage page[path /private/pets, secured VET](
+        header privateHeader
+        petsList list[load backend.PetApi.pets] {on select goto petUpdatePage(selected.id)}
+        addPet button {on click goto petCreatePage}
+        footer footer
+    )
+
+    petCreatePage page[path /private/pet/new, secured VET](
+        header privateHeader
+        petCreateForm form[submit backend.PetApi.createPet] {on success goto petsPage}
+        footer footer
+    )
+
+    petUpdatePage page[path /private/pet/:id, params (id integer), secured VET](
+        header privateHeader
+        petUpdateForm form[bind params.id, load readPet, submit backend.PetApi.updatePet](
+            deleteButton button {
+                on click call deletePet(params.id) {
+                    on success goto petsPage
+                }
+            }
+        ) {on success goto petsPage}
+        footer footer
+    )
+  )  #ADMIN PORTAL CLIENT
+  adminPortal client[template js-angular, path /admin, connectedTo backend](
+    #TODO
+  )
+)

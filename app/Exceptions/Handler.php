@@ -4,7 +4,10 @@ namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class Handler extends ExceptionHandler
 {
@@ -27,7 +30,7 @@ class Handler extends ExceptionHandler
      *
      * This is a great spot to send exceptions to Sentry, Bugsnag, etc.
      *
-     * @param  \Exception  $exception
+     * @param  \Exception $exception
      * @return void
      */
     public function report(Exception $exception)
@@ -38,28 +41,50 @@ class Handler extends ExceptionHandler
     /**
      * Render an exception into an HTTP response.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Exception  $exception
+     * @param  \Illuminate\Http\Request $request
+     * @param  \Exception               $exception
      * @return \Illuminate\Http\Response
      */
     public function render($request, Exception $exception)
     {
+        // TODO
+
+        if ($request->wantsJson()) {
+            if ($exception instanceof NotFoundHttpException) {
+                return response()->json(['error' => 'HTTP Not Found'], 404);
+            }
+            if ($exception instanceof ModelNotFoundException) {
+                return response()->json(['error' => 'Model Not Found'], 404);
+            }
+            if ($exception instanceof MethodNotAllowedHttpException) {
+                return response()->json(['error' => 'HTTP Method Not Allowed'], 405);
+            }
+
+            // return response()->json([
+            //     'error'     => $exception->getMessage(),
+            //     'exception' => class_basename($exception),
+            //     // 'trace'     => $exception->getTrace(),
+            // ]);
+        }
+
         return parent::render($request, $exception);
     }
 
     /**
      * Convert an authentication exception into an unauthenticated response.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Illuminate\Auth\AuthenticationException  $exception
+     * @param  \Illuminate\Http\Request                 $request
+     * @param  \Illuminate\Auth\AuthenticationException $exception
      * @return \Illuminate\Http\Response
      */
     protected function unauthenticated($request, AuthenticationException $exception)
     {
-        if ($request->expectsJson()) {
-            return response()->json(['error' => 'Unauthenticated.'], 401);
-        }
+        return response()->json(['error' => 'Unauthenticated'], 401);
 
-        return redirect()->guest('login');
+        // if ($request->expectsJson()) {
+        //
+        // }
+        //
+        // return redirect()->guest('login');
     }
 }

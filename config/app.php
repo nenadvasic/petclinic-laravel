@@ -166,8 +166,14 @@ return [
         /*
          * Package Service Providers...
          */
+        // Tymon\JWTAuth\Providers\JWTAuthServiceProvider::class,
+        Tymon\JWTAuth\Providers\LaravelServiceProvider::class,
+        Barryvdh\Cors\ServiceProvider::class,
+        Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class,
+        Spatie\Fractal\FractalServiceProvider::class,
 
-        //
+        // TODO
+        // Jlapp\Swaggervel\SwaggervelServiceProvider::class,
 
         /*
          * Application Service Providers...
@@ -177,6 +183,12 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+
+        /**
+         * Sifu Customization
+         */
+        App\Providers\RepositoryServiceProvider::class,
+        App\Providers\ServiceServiceProvider::class,
 
     ],
 
@@ -226,6 +238,12 @@ return [
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
 
+        /**
+         * Sifu Customization
+         */
+        'SifuHelper' => App\Helpers\SifuHelper::class,
+        'JWTAuth' => Tymon\JWTAuth\Facades\JWTAuth::class,
+        'Fractal' => Spatie\Fractal\FractalFacade::class,
     ],
 
 ];
