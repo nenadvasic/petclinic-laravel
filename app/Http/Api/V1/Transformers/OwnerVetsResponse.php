@@ -2,14 +2,16 @@
 
 namespace App\Http\Api\V1\Transformers;
 
+use App\Models\Owner;
+
 class OwnerVetsResponse extends AbstractTransformer
 {
-    public function transform(\stdClass $row)
+    public function transform(Owner $owner)
     {
         return [
-            'id'      => $row->id,
-            'userId'  => $row->user_id,
-            'address' => $row->address,
+            'id'      => $owner->id,
+            'userId'  => $owner->user->id,
+            'address' => $owner->address,
             // ...
         ];
     }

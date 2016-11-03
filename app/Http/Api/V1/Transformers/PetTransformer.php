@@ -15,7 +15,7 @@ class PetTransformer extends AbstractTransformer
             'name'       => $pet->name,
             'birthdate'  => (new Carbon($pet->birthdate))->toDateString(), // Change format if needed
             'petType'    => $pet->pet_type,
-            'vaccinated' => (bool) $pet->vaccinated,
+            'vaccinated' => $pet->vaccinated,
         ];
     }
 }

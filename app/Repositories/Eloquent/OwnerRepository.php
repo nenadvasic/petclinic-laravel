@@ -31,8 +31,13 @@ class OwnerRepository extends AbstractRepository implements OwnerRepositoryInter
      */
     public function findOwnerWithUser($id)
     {
+        // return $this->model
+        //     ->join('users', 'owners.user_id', '=', 'users.id')
+        //     ->where('owners.id', $id)
+        //     ->first();
+
         return $this->model
-            ->join('users', 'owners.user_id', '=', 'users.id')
+            ->with('user')
             ->where('owners.id', $id)
             ->first();
     }
@@ -67,9 +72,15 @@ class OwnerRepository extends AbstractRepository implements OwnerRepositoryInter
      */
     public function deactivatedOwnerWithPets()
     {
+        // return $this->model
+        //     ->join('pets', 'owners.id', '=', 'pets.owner_id')
+        //     ->join('users', 'owners.user_id', '=', 'users.id')
+        //     ->where('users.active', 0)
+        //     ->where('users.role', UserRole::OWNER)
+        //     ->get();
+
         return $this->model
-            ->join('pets', 'owners.id', '=', 'pets.owner_id')
-            ->join('users', 'owners.user_id', '=', 'users.id')
+            ->with('pets', 'user')
             ->where('users.active', 0)
             ->where('users.role', UserRole::OWNER)
             ->get();
@@ -80,10 +91,10 @@ class OwnerRepository extends AbstractRepository implements OwnerRepositoryInter
      */
     public function findOwnerVets()
     {
-        // return $this->model
-        return \DB::table('owners')
+        return $this->model
             ->join('users', 'owners.user_id', '=', 'users.id')
             ->where('users.role', UserRole::VET)
+            ->with('user')
             ->get();
     }
 
@@ -106,25 +117,36 @@ class OwnerRepository extends AbstractRepository implements OwnerRepositoryInter
      */
     public function ownersWithPets()
     {
+        // return $this->model
+        //     ->join('pets', 'owners.id', '=', 'pets.owner_id')
+        //     ->join('users', 'owners.user_id', '=', 'users.id')
+        //     ->with('user')
+        //     ->get();
+
         return $this->model
-            ->join('pets', 'owners.id', '=', 'pets.owner_id')
-            ->join('users', 'owners.user_id', '=', 'users.id')
+            ->whereExists(function ($query) {
+                $query->selectRaw(1)->from('pets')->whereRaw('pets.owner_id = owners.id');
+            })
             ->with('user')
             ->get();
     }
 
     /**
-     * @param int $owner_id
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @param $owner_id
+     * @return \Illuminate\Database\Eloquent\Collection|\Illuminate\Database\Eloquent\Model
      */
     public function ownersPets($owner_id)
     {
+        // return $this->model
+        //     ->selectRaw('pets.id as pet_id, owners.id as owner_id, pets.name as pet_name')
+        //     ->join('pets', 'owners.id', '=', 'pets.owner_id')
+        //     ->join('users', 'owners.user_id', '=', 'users.id')
+        //     ->where('owners.id', $owner_id)
+        //     ->get();
+
         return $this->model
-            ->selectRaw('pets.id as pet_id, owners.id as owner_id, pets.name as pet_name')
-            ->join('pets', 'owners.id', '=', 'pets.owner_id')
-            ->join('users', 'owners.user_id', '=', 'users.id')
-            ->where('owners.id', $owner_id)
-            ->get();
+            ->with('pets')
+            ->findOrFail($owner_id);
     }
 
     /**
@@ -133,10 +155,14 @@ class OwnerRepository extends AbstractRepository implements OwnerRepositoryInter
      */
     public function myPets($principal_id)
     {
-        // return $this->model
-        return \DB::table('owners')
-            ->join('pets', 'owners.id', '=', 'pets.owner_id')
-            ->join('users', 'owners.user_id', '=', 'users.id')
+        // return \DB::table('owners')
+        //     ->join('pets', 'owners.id', '=', 'pets.owner_id')
+        //     ->join('users', 'owners.user_id', '=', 'users.id')
+        //     ->where('owners.user_id', $principal_id)
+        //     ->get();
+
+        return $this->model
+            ->with('pets', 'user')
             ->where('owners.user_id', $principal_id)
             ->get();
     }

@@ -77,10 +77,17 @@ class UserRepository extends AbstractRepository implements UserRepositoryInterfa
      */
     public function activeUsersVets()
     {
+        // return $this->model
+        //     ->join('vets', 'users.id', '=', 'vets.user_id')
+        //     ->where('users.role', UserRole::VET)
+        //     ->where('users.active', true)
+        //     ->orderBy('users.last_name', 'asc')
+        //     ->get();
+
         return $this->model
-            ->join('vets', 'users.id', '=', 'vets.user_id')
-            ->where('users.role', UserRole::VET)
-            ->where('users.active', true)
+            ->with('vet')
+            ->where('role', UserRole::VET)
+            ->where('active', true)
             ->orderBy('users.last_name', 'asc')
             ->get();
     }

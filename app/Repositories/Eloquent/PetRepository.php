@@ -32,15 +32,15 @@ class PetRepository extends AbstractRepository implements PetRepositoryInterface
      */
     public function petWithOwnerForOwner($owner_id)
     {
-        return $this->model
-            ->leftJoin('owners', 'pets.owner_id', '=' , 'owners.id')
-            ->where('owner_id', $owner_id)
-            ->get();
-
         // return $this->model
-        //     ->with('owner')
+        //     ->leftJoin('owners', 'pets.owner_id', '=' , 'owners.id')
         //     ->where('owner_id', $owner_id)
         //     ->get();
+
+        return $this->model
+            ->with('owner')
+            ->where('pets.owner_id', $owner_id)
+            ->get();
     }
 
 

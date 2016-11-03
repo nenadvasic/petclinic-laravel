@@ -11,6 +11,7 @@ use App\Http\Api\V1\Transformers\OwnersWithPetsResponse;
 use App\Http\Api\V1\Transformers\OwnerTransformer;
 use App\Http\Api\V1\Transformers\OwnerVetsResponse;
 use App\Repositories\Contracts\OwnerRepositoryInterface;
+use App\Repositories\Contracts\PetRepositoryInterface;
 use App\Services\OwnerService;
 use Illuminate\Http\Request;
 use League\Fractal\Pagination\IlluminatePaginatorAdapter;
@@ -128,12 +129,18 @@ class OwnerController extends AbstractController
 
     /**
      * @param int $owner_id
+     * @param PetRepositoryInterface $pet_repo Pet repository for 2nd example
      * @return \Illuminate\Http\JsonResponse
      */
-    public function ownersPets($owner_id)
+    public function ownersPets($owner_id, PetRepositoryInterface $pet_repo)
     {
+        // 1st example:
         $result = $this->owner_repository->ownersPets($owner_id);
-        $dto    = fractal()->collection($result, new OwnersPetsResponse());
+        $dto    = fractal()->item($result, new OwnersPetsResponse());
+
+        // 2nd example (with calling Pet repo)
+        // $result = $pet_repo->petWithOwnerForOwner($owner_id);
+        // $dto    = fractal()->collection($result, new OwnersPetsResponse());
 
         return response()->json($dto);
     }
@@ -145,6 +152,8 @@ class OwnerController extends AbstractController
     {
         $result = $this->owner_repository->myPets(auth()->user()->id);
         $dto    = fractal()->collection($result, new MyPetsResponse());
+
+        // Instead of MyPetsResponse we can actually use OwnerTransformer with optionally includes for user and pets
 
         return response()->json($dto);
     }
